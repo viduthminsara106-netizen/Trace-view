@@ -1,0 +1,174 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for ActivityItem
+    function isValidActivityItem(data) {
+      return data.keys().hasAll([
+        'userId',
+        'title',
+        'url',
+        'domain',
+        'category',
+        'source',
+        'visitedAt',
+        'visitCount',
+        'durationSec',
+        'device',
+        'isBookmarked',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'title',
+        'url',
+        'domain',
+        'category',
+        'source',
+        'visitedAt',
+        'visitCount',
+        'durationSec',
+        'device',
+        'phoneLabel',
+        'isBookmarked',
+        'videoId',
+        'channelName',
+        'searchQuery',
+        'notes',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.userId == request.auth.uid &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+      data.url is string && data.url.size() >= 1 && data.url.size() <= 2000 &&
+      data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 255 &&
+      data.category is string && data.category.size() <= 32 &&
+      data.category in ['site', 'video', 'search', 'document', 'social', 'shopping', 'dev'] &&
+      data.source is string && data.source.size() <= 32 &&
+      data.source in ['chrome_history', 'youtube_watch', 'google_search', 'takeout_import', 'manual_log', 'sample_demo'] &&
+      data.visitedAt is string && data.visitedAt.size() >= 1 && data.visitedAt.size() <= 64 &&
+      data.visitCount is int && data.visitCount >= 1 && data.visitCount <= 100000 &&
+      data.durationSec is int && data.durationSec >= 0 && data.durationSec <= 864000 &&
+      data.device is string && data.device.size() <= 32 &&
+      data.device in ['Desktop Chrome', 'Android Chrome', 'iOS Chrome', 'Web Sync'] &&
+      (!('phoneLabel' in data) || (data.phoneLabel is string && data.phoneLabel.size() <= 100)) &&
+      data.isBookmarked is bool &&
+      (!('videoId' in data) || (data.videoId is string && data.videoId.size() <= 64)) &&
+      (!('channelName' in data) || (data.channelName is string && data.channelName.size() <= 150)) &&
+      (!('searchQuery' in data) || (data.searchQuery is string && data.searchQuery.size() <= 300)) &&
+      (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for PairedDevice
+    function isValidPairedDevice(data) {
+      return data.keys().hasAll([
+        'userId',
+        'deviceName',
+        'deviceType',
+        'userAgentSummary',
+        'syncCode',
+        'lastSyncedAt',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'deviceName',
+        'deviceType',
+        'userAgentSummary',
+        'syncCode',
+        'lastSyncedAt',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.userId == request.auth.uid &&
+      data.deviceName is string && data.deviceName.size() >= 1 && data.deviceName.size() <= 100 &&
+      data.deviceType is string && data.deviceType.size() <= 32 &&
+      data.deviceType in ['Desktop Chrome', 'Android Chrome', 'iOS Chrome', 'Web Sync'] &&
+      data.userAgentSummary is string && data.userAgentSummary.size() >= 1 && data.userAgentSummary.size() <= 200 &&
+      data.syncCode is string && data.syncCode.size() >= 6 && data.syncCode.size() <= 12 &&
+      data.lastSyncedAt is string && data.lastSyncedAt.size() >= 1 && data.lastSyncedAt.size() <= 64 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    match /activities/{activityId} {
+      allow get: if isSignedIn() && isValidId(activityId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(activityId) &&
+        isValidActivityItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+        isValidId(activityId) &&
+        isValidActivityItem(incoming()) &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Toggle Bookmark
+          incoming().diff(existing()).affectedKeys().hasOnly(['isBookmarked', 'updatedAt']) ||
+          // Action 2: Edit Metadata / Notes / Visit count / Phone label
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'notes', 'isBookmarked', 'visitCount', 'durationSec', 'visitedAt', 'phoneLabel', 'updatedAt'])
+        );
+
+      allow delete: if isSignedIn() &&
+        isValidId(activityId) &&
+        existing().userId == request.auth.uid;
+    }
+
+    match /devices/{deviceId} {
+      allow get: if isSignedIn() && isValidId(deviceId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+        isValidId(deviceId) &&
+        isValidPairedDevice(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() &&
+        isValidId(deviceId) &&
+        isValidPairedDevice(incoming()) &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['deviceName', 'lastSyncedAt', 'updatedAt']);
+
+      allow delete: if isSignedIn() &&
+        isValidId(deviceId) &&
+        existing().userId == request.auth.uid;
+    }
+  }
+}

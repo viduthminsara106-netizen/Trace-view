@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "ActivityItem": {
+      "title": "ActivityItem",
+      "description": "Represents a single browsing history entry, watched video, or search query belonging to an authenticated user across any of their synced phones or computers.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user who owns this activity record.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Page title, video title, or search query text.",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "url": {
+          "type": "string",
+          "description": "Full URL of the visited webpage or video.",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "domain": {
+          "type": "string",
+          "description": "Extracted hostname/domain of the URL (e.g. youtube.com, github.com).",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "category": {
+          "type": "string",
+          "description": "Classification of the activity item.",
+          "enum": ["site", "video", "search", "document", "social", "shopping", "dev"],
+          "maxLength": 32
+        },
+        "source": {
+          "type": "string",
+          "description": "Origin of the activity record.",
+          "enum": ["chrome_history", "youtube_watch", "google_search", "takeout_import", "manual_log", "sample_demo"],
+          "maxLength": 32
+        },
+        "visitedAt": {
+          "type": "string",
+          "description": "ISO-8601 timestamp string indicating when the user visited the site or watched the video.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "visitCount": {
+          "type": "integer",
+          "description": "Number of times this URL was visited."
+        },
+        "durationSec": {
+          "type": "integer",
+          "description": "Estimated or recorded time spent / video watch duration in seconds."
+        },
+        "device": {
+          "type": "string",
+          "description": "Device or browser profile where the activity occurred.",
+          "enum": ["Desktop Chrome", "Android Chrome", "iOS Chrome", "Web Sync"],
+          "maxLength": 32
+        },
+        "phoneLabel": {
+          "type": "string",
+          "description": "Optional specific phone or device label (e.g. 'Other Phone — Android Chrome').",
+          "maxLength": 100
+        },
+        "isBookmarked": {
+          "type": "boolean",
+          "description": "Whether the user pinned or saved this activity item for quick reference."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Optional YouTube or video identifier for embedded preview.",
+          "maxLength": 64
+        },
+        "channelName": {
+          "type": "string",
+          "description": "Optional YouTube channel name or site publisher.",
+          "maxLength": 150
+        },
+        "searchQuery": {
+          "type": "string",
+          "description": "Optional extracted search query if the activity was a search.",
+          "maxLength": 300
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional user annotation or tag notes.",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was saved."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was last modified."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "url",
+        "domain",
+        "category",
+        "source",
+        "visitedAt",
+        "visitCount",
+        "durationSec",
+        "device",
+        "isBookmarked",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PairedDevice": {
+      "title": "PairedDevice",
+      "description": "Represents a phone or computer signed into the same Google account for cross-device Chrome history syncing.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user who owns this device.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "deviceName": {
+          "type": "string",
+          "description": "Friendly name of the phone or browser (e.g. 'Other Phone (Android Chrome)').",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "deviceType": {
+          "type": "string",
+          "description": "Platform type of the device.",
+          "enum": ["Desktop Chrome", "Android Chrome", "iOS Chrome", "Web Sync"],
+          "maxLength": 32
+        },
+        "userAgentSummary": {
+          "type": "string",
+          "description": "Short browser/OS summary string.",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "syncCode": {
+          "type": "string",
+          "description": "6-digit pairing identifier for quick phone verification.",
+          "minLength": 6,
+          "maxLength": 12
+        },
+        "lastSyncedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last sync activity.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when device was registered."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when device was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "deviceName",
+        "deviceType",
+        "userAgentSummary",
+        "syncCode",
+        "lastSyncedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/activities/{activityId}": {
+      "schema": {
+        "$ref": "#/entities/ActivityItem"
+      },
+      "description": "Stores per-user Chrome browsing history, watched videos, and search activity items across synced phones."
+    },
+    "/devices/{deviceId}": {
+      "schema": {
+        "$ref": "#/entities/PairedDevice"
+      },
+      "description": "Stores phones and browsers connected to the user's Google account."
+    }
+  }
+}

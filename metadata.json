@@ -1,0 +1,6 @@
+{
+  "name": "TraceView — Chrome & Video Activity Explorer",
+  "description": "Sign in with Google to inspect, filter, and sync your complete Chrome browsing history, watched videos, and search activity with domain analytics and Google Takeout/Chrome SQLite import.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
